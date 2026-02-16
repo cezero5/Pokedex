@@ -1,4 +1,5 @@
-import requests
+from core.PokedexImport import requests
+
 
 BASE_URL = "https://pokeapi.co/api/v2/"
 

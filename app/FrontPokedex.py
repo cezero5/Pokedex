@@ -1,17 +1,11 @@
-from PySide6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QLineEdit,
-    QListWidget, QTabWidget, QLabel, QHBoxLayout
-)
-from PySide6.QtGui import QKeyEvent, QPixmap
-
-from PySide6.QtCore import Qt, QEvent
+import core.PokedexImport as qt
 
 from core.PokeApiClient import PokeApiClient
 from builders.PokemonTextBuilder import PokemonTextBuilder
 from builders.MoveTextBuilder import MoveTextBuilder
 # ----------------- 3) UI: SOLO PRESENTACIÓN -----------------
 
-class FrontPokedex(QWidget):
+class FrontPokedex(qt.QWidget):
     
     def __init__(self, api: PokeApiClient, pokemon_builder: PokemonTextBuilder, move_builder: MoveTextBuilder):
         super().__init__()
@@ -41,23 +35,23 @@ class FrontPokedex(QWidget):
         self.update_list(text, self.names_moves, self.list_moves)
 
     def setup_tabs(self):
-        self.tabs = QTabWidget()
+        self.tabs = qt.QTabWidget()
 
         # TAB 1
-        self.tab_pokemon = QWidget()
-        layout_pokemon = QVBoxLayout(self.tab_pokemon)
+        self.tab_pokemon = qt.QWidget()
+        layout_pokemon = qt.QVBoxLayout(self.tab_pokemon)
 
-        self.search_pokemon = QLineEdit()
+        self.search_pokemon = qt.QLineEdit()
         self.search_pokemon.setPlaceholderText("Example: pikachu")
 
-        self.list_pokemon = QListWidget()
+        self.list_pokemon = qt.QListWidget()
 
-        info_layout = QHBoxLayout()
+        info_layout = qt.QHBoxLayout()
 
-        self.details_pokemon = QLabel("Select pokemon")
+        self.details_pokemon = qt.QLabel("Select pokemon")
         self.details_pokemon.setWordWrap(True)
 
-        self.sprite_label = QLabel()
+        self.sprite_label = qt.QLabel()
         self.sprite_label.setFixedSize(120, 120)
 
         info_layout.addWidget(self.details_pokemon)
@@ -71,15 +65,15 @@ class FrontPokedex(QWidget):
         self.tabs.addTab(self.tab_pokemon, "Pokemon")
 
         # TAB 2
-        self.tab_moves = QWidget()
-        layout_moves = QVBoxLayout(self.tab_moves)
+        self.tab_moves = qt.QWidget()
+        layout_moves = qt.QVBoxLayout(self.tab_moves)
 
-        self.search_moves = QLineEdit()
+        self.search_moves = qt.QLineEdit()
         self.search_moves.setPlaceholderText("Example: tackle")
 
-        self.list_moves = QListWidget()
+        self.list_moves = qt.QListWidget()
 
-        self.details_moves = QLabel("Select move")
+        self.details_moves = qt.QLabel("Select move")
         self.details_moves.setWordWrap(True)
 
         layout_moves.addWidget(self.search_moves)
@@ -89,11 +83,11 @@ class FrontPokedex(QWidget):
         
         self.tabs.addTab(self.tab_moves, "Move")
 
-        main_layout = QVBoxLayout(self)
+        main_layout = qt.QVBoxLayout(self)
         main_layout.addWidget(self.tabs)
 
     def eventFilter(self, obj, event):
-        if event.type() == QEvent.KeyPress:
+        if event.type() == qt.QEvent.KeyPress:
             key = event.key()
 
             if obj is self.search_pokemon:
@@ -105,7 +99,7 @@ class FrontPokedex(QWidget):
             else:
                 return super().eventFilter(obj, event)
 
-            if key == Qt.Key_Down and lst.count() > 0:
+            if key == qt.Qt.Key_Down and lst.count() > 0:
                 row = lst.currentRow()
                 if row < 0:
                     lst.setCurrentRow(0)
@@ -113,7 +107,7 @@ class FrontPokedex(QWidget):
                     lst.setCurrentRow(min(row + 1, lst.count() - 1))
                 return True
 
-            if key == Qt.Key_Up and lst.count() > 0:
+            if key == qt.Qt.Key_Up and lst.count() > 0:
                 row = lst.currentRow()
                 if row < 0:
                     lst.setCurrentRow(0)
@@ -121,7 +115,7 @@ class FrontPokedex(QWidget):
                     lst.setCurrentRow(max(row - 1, 0))
                 return True
 
-            if key in (Qt.Key_Return, Qt.Key_Enter):
+            if key in (qt.Qt.Key_Return, qt.Qt.Key_Enter):
                 item = lst.currentItem()
                 if item:
                     select(item)
