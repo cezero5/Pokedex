@@ -75,11 +75,19 @@ class FrontPokedex(qt.QWidget):
 
         self.details_moves = qt.QLabel("Select move")
         self.details_moves.setWordWrap(True)
+        
+        self.learned_label = qt.QLabel("📘 Learned by Pokémon:")
+        self.learned_list = qt.QListWidget()
+        self.learned_list.setMaximumHeight(150)
+        self.learned_list.hide()
+        self.learned_label.hide()
 
         layout_moves.addWidget(self.search_moves)
         layout_moves.addWidget(self.list_moves)
         layout_moves.addWidget(self.details_moves)
-        layout_pokemon.addStretch(1)
+        layout_moves.addWidget(self.learned_label)
+        layout_moves.addWidget(self.learned_list)
+        layout_moves.addStretch(1)
         
         self.tabs.addTab(self.tab_moves, "Move")
 
@@ -146,6 +154,8 @@ class FrontPokedex(qt.QWidget):
         # Clicks
         self.list_pokemon.itemClicked.connect(self.on_pokemon_clicked)
         self.list_moves.itemClicked.connect(self.on_move_clicked)
+        self.learned_list.itemClicked.connect(self.on_pokemon_clicked_from_move)
+        self.learned_list.itemClicked.connect(self.on_learned_pokemon_clicked)
 
     def update_list(self, text, names, widget):
         t = text.strip().lower()
@@ -196,7 +206,7 @@ class FrontPokedex(qt.QWidget):
 
         try:
             img = self.api.get_image_bytes(sprite_url)
-            pixmap = QPixmap()
+            pixmap = qt.QPixmap()
             pixmap.loadFromData(img)
             self.sprite_cache[sprite_url] = pixmap
 
@@ -217,7 +227,53 @@ class FrontPokedex(qt.QWidget):
         
         self.details_moves.setText(self.move_builder.build(data))
         
+        # 🔥 llenar lista learned
+        self.learned_list.clear()
+        learned = data.get("learned_by_pokemon", [])
+
+        for p in learned:
+            self.learned_list.addItem(p["name"])
+
+        if learned:
+            self.learned_label.show()
+            self.learned_list.show()
+        else:
+            self.learned_label.hide()
+            self.learned_list.hide()
+        
         self.search_moves.blockSignals(True)
         self.search_moves.setText(item.text())
         self.search_moves.blockSignals(False)
         self.list_moves.hide()
+
+    def on_pokemon_clicked_from_move(self, item):
+        pokemon_name = item.text()
+        self.tabs.setCurrentIndex(0)  # cambiar a tab Pokémon
+        self.search_pokemon.setText(pokemon_name)
+        self.on_pokemon_clicked(item)
+        
+    def on_learned_pokemon_clicked(self, item):
+        name = item.text().strip().lower()
+
+        # Cambiar a tab Pokémon
+        self.tabs.setCurrentIndex(0)
+
+        self.details_pokemon.setText("Loading...")
+
+        try:
+            data = self.api.get_pokemon(name)
+        except Exception as e:
+            self.details_pokemon.setText(f"Error cargando Pokémon: {e}")
+            return
+
+        # Mostrar información
+        self.details_pokemon.setText(self.pokemon_builder.build(data))
+        self.load_sprite_from_data(data)
+
+        # Actualizar barra de búsqueda
+        self.search_pokemon.blockSignals(True)
+        self.search_pokemon.setText(name)
+        self.search_pokemon.blockSignals(False)
+
+        # Ocultar lista desplegable si estaba visible
+        self.list_pokemon.hide()
