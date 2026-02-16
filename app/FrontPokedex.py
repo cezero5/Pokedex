@@ -1,17 +1,11 @@
-from PySide6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QLineEdit,
-    QListWidget, QTabWidget, QLabel, QHBoxLayout
-)
-from PySide6.QtGui import QKeyEvent, QPixmap
-
-from PySide6.QtCore import Qt, QEvent
+import core.PokedexImport as qt
 
 from core.PokeApiClient import PokeApiClient
 from builders.PokemonTextBuilder import PokemonTextBuilder
 from builders.MoveTextBuilder import MoveTextBuilder
 # ----------------- 3) UI: SOLO PRESENTACIÓN -----------------
 
-class FrontPokedex(QWidget):
+class FrontPokedex(qt.QWidget):
     
     def __init__(self, api: PokeApiClient, pokemon_builder: PokemonTextBuilder, move_builder: MoveTextBuilder):
         super().__init__()
@@ -41,23 +35,23 @@ class FrontPokedex(QWidget):
         self.update_list(text, self.names_moves, self.list_moves)
 
     def setup_tabs(self):
-        self.tabs = QTabWidget()
+        self.tabs = qt.QTabWidget()
 
         # TAB 1
-        self.tab_pokemon = QWidget()
-        layout_pokemon = QVBoxLayout(self.tab_pokemon)
+        self.tab_pokemon = qt.QWidget()
+        layout_pokemon = qt.QVBoxLayout(self.tab_pokemon)
 
-        self.search_pokemon = QLineEdit()
+        self.search_pokemon = qt.QLineEdit()
         self.search_pokemon.setPlaceholderText("Example: pikachu")
 
-        self.list_pokemon = QListWidget()
+        self.list_pokemon = qt.QListWidget()
 
-        info_layout = QHBoxLayout()
+        info_layout = qt.QHBoxLayout()
 
-        self.details_pokemon = QLabel("Select pokemon")
+        self.details_pokemon = qt.QLabel("Select pokemon")
         self.details_pokemon.setWordWrap(True)
 
-        self.sprite_label = QLabel()
+        self.sprite_label = qt.QLabel()
         self.sprite_label.setFixedSize(120, 120)
 
         info_layout.addWidget(self.details_pokemon)
@@ -71,29 +65,37 @@ class FrontPokedex(QWidget):
         self.tabs.addTab(self.tab_pokemon, "Pokemon")
 
         # TAB 2
-        self.tab_moves = QWidget()
-        layout_moves = QVBoxLayout(self.tab_moves)
+        self.tab_moves = qt.QWidget()
+        layout_moves = qt.QVBoxLayout(self.tab_moves)
 
-        self.search_moves = QLineEdit()
+        self.search_moves = qt.QLineEdit()
         self.search_moves.setPlaceholderText("Example: tackle")
 
-        self.list_moves = QListWidget()
+        self.list_moves = qt.QListWidget()
 
-        self.details_moves = QLabel("Select move")
+        self.details_moves = qt.QLabel("Select move")
         self.details_moves.setWordWrap(True)
+        
+        self.learned_label = qt.QLabel("📘 Learned by Pokémon:")
+        self.learned_list = qt.QListWidget()
+        self.learned_list.setMaximumHeight(150)
+        self.learned_list.hide()
+        self.learned_label.hide()
 
         layout_moves.addWidget(self.search_moves)
         layout_moves.addWidget(self.list_moves)
         layout_moves.addWidget(self.details_moves)
-        layout_pokemon.addStretch(1)
+        layout_moves.addWidget(self.learned_label)
+        layout_moves.addWidget(self.learned_list)
+        layout_moves.addStretch(1)
         
         self.tabs.addTab(self.tab_moves, "Move")
 
-        main_layout = QVBoxLayout(self)
+        main_layout = qt.QVBoxLayout(self)
         main_layout.addWidget(self.tabs)
 
     def eventFilter(self, obj, event):
-        if event.type() == QEvent.KeyPress:
+        if event.type() == qt.QEvent.KeyPress:
             key = event.key()
 
             if obj is self.search_pokemon:
@@ -105,7 +107,7 @@ class FrontPokedex(QWidget):
             else:
                 return super().eventFilter(obj, event)
 
-            if key == Qt.Key_Down and lst.count() > 0:
+            if key == qt.Qt.Key_Down and lst.count() > 0:
                 row = lst.currentRow()
                 if row < 0:
                     lst.setCurrentRow(0)
@@ -113,7 +115,7 @@ class FrontPokedex(QWidget):
                     lst.setCurrentRow(min(row + 1, lst.count() - 1))
                 return True
 
-            if key == Qt.Key_Up and lst.count() > 0:
+            if key == qt.Qt.Key_Up and lst.count() > 0:
                 row = lst.currentRow()
                 if row < 0:
                     lst.setCurrentRow(0)
@@ -121,7 +123,7 @@ class FrontPokedex(QWidget):
                     lst.setCurrentRow(max(row - 1, 0))
                 return True
 
-            if key in (Qt.Key_Return, Qt.Key_Enter):
+            if key in (qt.Qt.Key_Return, qt.Qt.Key_Enter):
                 item = lst.currentItem()
                 if item:
                     select(item)
@@ -152,6 +154,8 @@ class FrontPokedex(QWidget):
         # Clicks
         self.list_pokemon.itemClicked.connect(self.on_pokemon_clicked)
         self.list_moves.itemClicked.connect(self.on_move_clicked)
+        self.learned_list.itemClicked.connect(self.on_pokemon_clicked_from_move)
+        self.learned_list.itemClicked.connect(self.on_learned_pokemon_clicked)
 
     def update_list(self, text, names, widget):
         t = text.strip().lower()
@@ -202,7 +206,7 @@ class FrontPokedex(QWidget):
 
         try:
             img = self.api.get_image_bytes(sprite_url)
-            pixmap = QPixmap()
+            pixmap = qt.QPixmap()
             pixmap.loadFromData(img)
             self.sprite_cache[sprite_url] = pixmap
 
@@ -223,7 +227,53 @@ class FrontPokedex(QWidget):
         
         self.details_moves.setText(self.move_builder.build(data))
         
+        # 🔥 llenar lista learned
+        self.learned_list.clear()
+        learned = data.get("learned_by_pokemon", [])
+
+        for p in learned:
+            self.learned_list.addItem(p["name"])
+
+        if learned:
+            self.learned_label.show()
+            self.learned_list.show()
+        else:
+            self.learned_label.hide()
+            self.learned_list.hide()
+        
         self.search_moves.blockSignals(True)
         self.search_moves.setText(item.text())
         self.search_moves.blockSignals(False)
         self.list_moves.hide()
+
+    def on_pokemon_clicked_from_move(self, item):
+        pokemon_name = item.text()
+        self.tabs.setCurrentIndex(0)  # cambiar a tab Pokémon
+        self.search_pokemon.setText(pokemon_name)
+        self.on_pokemon_clicked(item)
+        
+    def on_learned_pokemon_clicked(self, item):
+        name = item.text().strip().lower()
+
+        # Cambiar a tab Pokémon
+        self.tabs.setCurrentIndex(0)
+
+        self.details_pokemon.setText("Loading...")
+
+        try:
+            data = self.api.get_pokemon(name)
+        except Exception as e:
+            self.details_pokemon.setText(f"Error cargando Pokémon: {e}")
+            return
+
+        # Mostrar información
+        self.details_pokemon.setText(self.pokemon_builder.build(data))
+        self.load_sprite_from_data(data)
+
+        # Actualizar barra de búsqueda
+        self.search_pokemon.blockSignals(True)
+        self.search_pokemon.setText(name)
+        self.search_pokemon.blockSignals(False)
+
+        # Ocultar lista desplegable si estaba visible
+        self.list_pokemon.hide()

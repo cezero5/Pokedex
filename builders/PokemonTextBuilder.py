@@ -1,4 +1,5 @@
-# ----------------- 2) Texto: SOLO FORMATO (sin requests, sin UI) -----------------
+from core.PokedexImport import QLabel
+
 class PokemonTextBuilder:
     def build(self, data: dict) -> str:
         # Tipos
