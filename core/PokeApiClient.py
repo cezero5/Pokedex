@@ -24,5 +24,8 @@ class PokeApiClient:
     def get_move(self, name: str):
         return requests.get(self.base_url + f"move/{name}", timeout=self.timeout).json()
     
+    def get_species(self, name: str):
+        return requests.get(self.base_url + f"pokemon-species/{name}", timeout=self.timeout).json()
+    
     def get_image_bytes(self, url: str):
         return requests.get(url, timeout=self.timeout).content

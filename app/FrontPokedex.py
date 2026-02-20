@@ -16,6 +16,10 @@ class FrontPokedex(qt.QWidget):
         self.resize(325, 450)
 
         self.sprite_cache = {}
+        self.pokemon_cache = {}
+        self.species_cache = {}
+        
+        self.current_move_name = None
 
         
         self.setup_tabs()
@@ -154,8 +158,8 @@ class FrontPokedex(qt.QWidget):
         # Clicks
         self.list_pokemon.itemClicked.connect(self.on_pokemon_clicked)
         self.list_moves.itemClicked.connect(self.on_move_clicked)
-        self.learned_list.itemClicked.connect(self.on_pokemon_clicked_from_move)
-        self.learned_list.itemClicked.connect(self.on_learned_pokemon_clicked)
+        self.learned_list.itemClicked.connect(self.info_learned_move_pokemon)
+
 
     def update_list(self, text, names, widget):
         t = text.strip().lower()
@@ -178,13 +182,27 @@ class FrontPokedex(qt.QWidget):
         name = item.text().strip().lower()
         self.details_pokemon.setText("Loading...")
         txt = item.text()
+        
+
         try:
-            data = self.api.get_pokemon(name)
+            if name in self.pokemon_cache:
+              data = self.pokemon_cache[name]
+            else:
+                data = self.api.get_pokemon(name)
+                self.pokemon_cache[name] = data
+
+            if name in self.species_cache:
+                species = self.species_cache[name]
+            else:
+                species = self.api.get_species(name)
+                self.species_cache[name] = species
+
         except Exception as e:
             self.details_pokemon.setText(f"Error cargando Pokémon: {e}")
             return
 
-        self.details_pokemon.setText(self.pokemon_builder.build(data))
+        self.details_pokemon.setText(self.pokemon_builder.build(data, species))
+        
         self.load_sprite_from_data(data)
 
         self.search_pokemon.blockSignals(True)
@@ -217,6 +235,7 @@ class FrontPokedex(qt.QWidget):
 
     def on_move_clicked(self, item):
         name = item.text().strip().lower()
+        self.current_move_name = name
         self.details_moves.setText("Loading...")
         
         try:
@@ -259,15 +278,26 @@ class FrontPokedex(qt.QWidget):
         self.tabs.setCurrentIndex(0)
 
         self.details_pokemon.setText("Loading...")
-
+        
         try:
-            data = self.api.get_pokemon(name)
+            if name in self.pokemon_cache:
+                data = self.pokemon_cache[name]
+            else:
+                data = self.api.get_pokemon(name)
+                self.pokemon_cache[name] = data
+
+            if name in self.species_cache:
+                species = self.species_cache[name]
+            else:
+                species = self.api.get_species(name)
+                self.species_cache[name] = species
+
         except Exception as e:
             self.details_pokemon.setText(f"Error cargando Pokémon: {e}")
             return
 
         # Mostrar información
-        self.details_pokemon.setText(self.pokemon_builder.build(data))
+        self.details_pokemon.setText(self.pokemon_builder.build(data, species))
         self.load_sprite_from_data(data)
 
         # Actualizar barra de búsqueda
@@ -277,3 +307,45 @@ class FrontPokedex(qt.QWidget):
 
         # Ocultar lista desplegable si estaba visible
         self.list_pokemon.hide()
+    
+    def info_learned_move_pokemon(self, item):
+        pokemon_name = item.text().lower()
+        
+        if pokemon_name in self.pokemon_cache:
+            pokemon_data = self.pokemon_cache[pokemon_name]
+        else:
+            pokemon_data = self.api.get_pokemon(pokemon_name)
+            self.pokemon_cache[pokemon_name] = pokemon_data
+        
+        stats = {s["stat"]["name"]: s["base_stat"] for s in pokemon_data["stats"]}
+        
+        info_text = f"""\nPokemon: {pokemon_data['name'].capitalize()}\nStats:
+            \tHP: {stats.get('hp')}
+            \tAttack: {stats.get('attack')}
+            \tDefense: {stats.get('defense')}
+            \tSp. Atk: {stats.get('special-attack')}
+            \tSp. Def: {stats.get('special-defense')}
+            \tSpeed: {stats.get('speed')}
+            \t\n"""
+            
+        
+        learn_methods = []
+        move_name = self.current_move_name
+        for move in pokemon_data["moves"]:
+            if move["move"]["name"] == move_name:
+                for detail in move["version_group_details"]:
+                    method = detail["move_learn_method"]["name"]
+                    level = detail["level_learned_at"]
+                    
+                    if method == "level-up":
+                        learn_methods.append(f"Level {level}")
+                    else:
+                        learn_methods.append(method.capitalize())
+                break
+        if learn_methods:
+            info_text += "\nLearn method:\n"
+            info_text += "\n".join(f"- {m}" for m in set(learn_methods))
+        else:
+            info_text += "\n This Pokemon canot learn this move."
+        
+        self.details_moves.setText(info_text)
